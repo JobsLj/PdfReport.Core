@@ -17,7 +17,11 @@ namespace PdfRpt.Core.Helper
         /// <returns>embedded resource</returns>
         public static byte[] GetResourceByName(string fileName)
         {
+#if NET40
+            var assembly = Assembly.GetExecutingAssembly();
+#else
             var assembly = typeof(StreamHelper).GetTypeInfo().Assembly;
+#endif
             var stream = assembly.GetManifestResourceStream(fileName);
 
             if (stream == null)
@@ -69,7 +73,9 @@ namespace PdfRpt.Core.Helper
             var fileStream = stream as FileStream;
             if (fileStream != null)
             {
-                return new FileStream(fileStream.Name, FileMode.Create, FileAccess.Write);
+                string name = fileStream.Name;
+                fileStream.Dispose();
+                return new FileStream(name, FileMode.Create, FileAccess.Write);
             }
             return new MemoryStream();
         }
@@ -81,7 +87,7 @@ namespace PdfRpt.Core.Helper
         /// <returns></returns>
         public static Stream ReopenForReading(this Stream stream)
         {
-            if (stream.CanRead && stream.CanSeek && stream.CanWrite)
+            if (stream.CanRead && stream.CanSeek)
             {
                 stream.Position = 0;
                 return stream;
@@ -90,13 +96,17 @@ namespace PdfRpt.Core.Helper
             var fileStream = stream as FileStream;
             if (fileStream != null)
             {
-                return new FileStream(fileStream.Name, FileMode.Open, FileAccess.Read, FileShare.Read);
+                var name = fileStream.Name;
+                fileStream.Dispose();
+                return new FileStream(name, FileMode.Open, FileAccess.Read, FileShare.Read);
             }
 
             var memoryStream = stream as MemoryStream;
             if (memoryStream != null)
             {
-                return new MemoryStream(memoryStream.ToArray());
+                var buffer = memoryStream.ToArray();
+                memoryStream.Dispose();
+                return new MemoryStream(buffer);
             }
 
             throw new InvalidOperationException("Can not ReopenForReading.");
